@@ -1,0 +1,57 @@
+name: Deploy to RuthServer via Docker Hub
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
+
+      - name: Build and Push Docker Image
+        run: |
+          docker build -t ${{ secrets.DOCKER_HUB_USERNAME }}/RuthAPI:latest .
+          docker push ${{ secrets.DOCKER_HUB_USERNAME }}/RuthAPI:latest
+
+      - name: Create env file
+        run: |
+          echo "DOCKER_HUB_USERNAME=${{ secrets.DOCKER_HUB_USERNAME }}" > .env
+          echo "DOCKER_HUB_ACCESS_TOKEN=${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}" >> .env
+          echo "RUTH_SERVER_HOST=${{ secrets.RUTH_SERVER_HOST }}" >> .env
+          echo "RUTH_SERVER_USER=${{ secrets.RUTH_SERVER_USER }}" >> .env
+          echo "RUTH_SERVER_SSH_KEY=${{ secrets.RUTH_SERVER_SSH_KEY }}" >> .env
+
+      - name: Create backup zip file
+        run: |
+          TIMESTAMP=$(date +%Y%m%d%H%M%S)
+          ZIP_NAME="deploy_RuthAPI_$TIMESTAMP.zip"
+          zip -r $ZIP_NAME .env docker-compose.yml deploy.sh appspec.yml
+          echo "ZIP_NAME=$ZIP_NAME" >> $GITHUB_ENV
+
+      - name: Deploy to RuthServer via SSH
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: ${{ secrets.RUTH_SERVER_HOST }}
+          username: ${{ secrets.RUTH_SERVER_USER }}
+          key: ${{ secrets.RUTH_SERVER_SSH_KEY }}
+          script: |
+            mkdir -p /home/${{ secrets.RUTH_SERVER_USER }}/backup
+            scp ${{ env.ZIP_NAME }} ${{ secrets.RUTH_SERVER_USER }}@${{ secrets.RUTH_SERVER_HOST }}:/home/${{ secrets.RUTH_SERVER_USER }}/backup/
+
+            ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ${{ secrets.RUTH_SERVER_USER }}@${{ secrets.RUTH_SERVER_HOST }} << 'EOF'
+              cd /home/${{ secrets.RUTH_SERVER_USER }}/RuthAPI
+              unzip /home/${{ secrets.RUTH_SERVER_USER }}/backup/${{ env.ZIP_NAME }} -d .
+              chmod +x deploy.sh
+              ./deploy.sh
+            EOF
