@@ -21,8 +21,8 @@ jobs:
 
       - name: Build and Push Docker Image
         run: |
-          docker build -t ${{ secrets.DOCKER_HUB_USERNAME }}/RuthAPI:latest .
-          docker push ${{ secrets.DOCKER_HUB_USERNAME }}/RuthAPI:latest
+          docker build -t ${{ secrets.DOCKER_HUB_USERNAME }}/ruthapi:latest .
+          docker push ${{ secrets.DOCKER_HUB_USERNAME }}/ruthapi:latest
 
       - name: Create env file
         run: |
@@ -35,7 +35,7 @@ jobs:
       - name: Create backup zip file
         run: |
           TIMESTAMP=$(date +%Y%m%d%H%M%S)
-          ZIP_NAME="deploy_RuthAPI_$TIMESTAMP.zip"
+          ZIP_NAME="deploy_ruthapi_$TIMESTAMP.zip"
           zip -r $ZIP_NAME .env docker-compose.yml deploy.sh appspec.yml
           echo "ZIP_NAME=$ZIP_NAME" >> $GITHUB_ENV
 
@@ -50,7 +50,7 @@ jobs:
             scp ${{ env.ZIP_NAME }} ${{ secrets.RUTH_SERVER_USER }}@${{ secrets.RUTH_SERVER_HOST }}:/home/${{ secrets.RUTH_SERVER_USER }}/backup/
 
             ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ${{ secrets.RUTH_SERVER_USER }}@${{ secrets.RUTH_SERVER_HOST }} << 'EOF'
-              cd /home/${{ secrets.RUTH_SERVER_USER }}/RuthAPI
+              cd /home/${{ secrets.RUTH_SERVER_USER }}/ruthapi
               unzip /home/${{ secrets.RUTH_SERVER_USER }}/backup/${{ env.ZIP_NAME }} -d .
               chmod +x deploy.sh
               ./deploy.sh

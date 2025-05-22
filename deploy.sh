@@ -32,7 +32,7 @@ docker volume prune -f
 
 # Fetch the latest image
 export $(grep -v '^#' .env | xargs)
-docker pull ${DOCKER_HUB_USERNAME}/RuthAPI:latest
+docker pull ${DOCKER_HUB_USERNAME}/ruthapi:latest
 
 # Run the container
 docker compose --env-file .env up -d
