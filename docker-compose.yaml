@@ -1,7 +1,7 @@
 services:
   app:
-    image: "${DOCKER_HUB_USERNAME}/RuthAPI:latest"
-    container_name: RuthAPI
+    image: "${DOCKER_HUB_USERNAME}/ruthapi:latest"
+    container_name: ruthapi
     restart: always
     ports:
       - "8080:8080"
