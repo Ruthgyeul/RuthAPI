@@ -30,7 +30,6 @@ jobs:
           echo "DOCKER_HUB_ACCESS_TOKEN=${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}" >> .env
           echo "RUTH_SERVER_HOST=${{ secrets.RUTH_SERVER_HOST }}" >> .env
           echo "RUTH_SERVER_USER=${{ secrets.RUTH_SERVER_USER }}" >> .env
-          echo "RUTH_SERVER_SSH_KEY=${{ secrets.RUTH_SERVER_SSH_KEY }}" >> .env
 
       - name: Create backup zip file
         run: |
@@ -39,19 +38,22 @@ jobs:
           zip -r $ZIP_NAME .env docker-compose.yml deploy.sh appspec.yml
           echo "ZIP_NAME=$ZIP_NAME" >> $GITHUB_ENV
 
-      - name: Deploy to RuthServer via SSH
+      - name: Deploy to RuthServer
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.RUTH_SERVER_HOST }}
+          username: ${{ secrets.RUTH_SERVER_USER }}
+          key: ${{ secrets.RUTH_SERVER_SSH_KEY }}
+          source: ".env,docker-compose.yml,deploy.sh,appspec.yml"
+          target: "/home/${{ secrets.RUTH_SERVER_USER }}/RuthAPI"
+
+      - name: Execute deploy script
         uses: appleboy/ssh-action@v0.1.10
         with:
           host: ${{ secrets.RUTH_SERVER_HOST }}
           username: ${{ secrets.RUTH_SERVER_USER }}
           key: ${{ secrets.RUTH_SERVER_SSH_KEY }}
           script: |
-            mkdir -p /home/${{ secrets.RUTH_SERVER_USER }}/backup
-            scp ${{ env.ZIP_NAME }} ${{ secrets.RUTH_SERVER_USER }}@${{ secrets.RUTH_SERVER_HOST }}:/home/${{ secrets.RUTH_SERVER_USER }}/backup/
-
-            ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ${{ secrets.RUTH_SERVER_USER }}@${{ secrets.RUTH_SERVER_HOST }} << 'EOF'
-              cd /home/${{ secrets.RUTH_SERVER_USER }}/ruthapi
-              unzip /home/${{ secrets.RUTH_SERVER_USER }}/backup/${{ env.ZIP_NAME }} -d .
-              chmod +x deploy.sh
-              ./deploy.sh
-            EOF
+            cd /home/${{ secrets.RUTH_SERVER_USER }}/RuthAPI
+            chmod +x deploy.sh
+            ./deploy.sh
